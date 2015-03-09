@@ -1,12 +1,10 @@
-python-flamegraph
-=================
-
-Statistical profiler which outputs in format suitable for FlameGraph_.
+**Statistical profiler which outputs in format suitable for FlameGraph_.**
 
 INSTALL:
 --------
 
-::
+Simply run::
+
   pip install git+https://github.com/evanhempel/python-flamegraph.git
 
 USAGE:
