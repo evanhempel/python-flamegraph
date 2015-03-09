@@ -1,4 +1,4 @@
-**Statistical profiler which outputs in format suitable for FlameGraph_.**
+A simple statistical profiler which outputs in format suitable for FlameGraph_.
 
 INSTALL:
 --------
