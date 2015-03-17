@@ -26,5 +26,23 @@ Enjoy the output:
   :height: 781
   :align: center
 
+**Filtering**
+
+Sometimes you may want to exclude a method 
+(for example in a server the method that waits for a new request)
+or you may want to profile only a subset of your code
+(a particular method and its children which are performance critical).
+Since the output is stackframes each on a line by itself,
+this can simply be done with a simple grep filter.
+
+Exclude::
+
+    grep -v waiting_method perf.log > removed_waiting.log
+
+Include:: 
+
+    grep function_name perf.log > filtered.log
+
+Then run the flamegraph.pl script against the filtered file.
 
 .. _FlameGraph: http://www.brendangregg.com/flamegraphs.html
