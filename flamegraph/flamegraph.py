@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import sys
 import time
 import os.path
@@ -45,7 +43,7 @@ class ProfileThread(threading.Thread):
     self._stopevent = threading.Event()
   
   def run(self):
-    my_thread = threading.get_ident()
+    my_thread = threading.current_thread().ident
     while self._keeprunning:
       for thread_id, frame in sys._current_frames().items():
         if thread_id == my_thread:
