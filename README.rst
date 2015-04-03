@@ -28,21 +28,46 @@ Enjoy the output:
 
 **Filtering**
 
-Sometimes you may want to exclude a method 
+Sometimes you may want to exclude a method
 (for example in a server the method that waits for a new request)
 or you may want to profile only a subset of your code
 (a particular method and its children which are performance critical).
-Since the output is stackframes each on a line by itself,
-this can simply be done with a simple grep filter.
 
-Exclude::
+Filtering can be done by passing a python regular expression to the
+``-f`` or ``--filter`` command line option
+which will restrict output to only those lines which match.
+Filtering is done against the entire line so you can filter by
+function name, thread name, both, or even by
+more complex filters such as function ABC calls DEF (``ABC.*DEF``).
 
-    grep -v waiting_method perf.log > removed_waiting.log
+Alternatively since the output is stackframes each on a line by itself,
+this can simply be done with a simple grep filter.::
 
-Include:: 
+    Exclude:
 
-    grep function_name perf.log > filtered.log
+      grep -v waiting_method perf.log > removed_waiting.log
+
+    Include:
+
+      grep function_name perf.log > filtered.log
 
 Then run the flamegraph.pl script against the filtered file.
 
+.. figure:: docs/ycanta-full.png
+  :alt: yCanta webapp full profile of PDF export
+  :align: center
+
+  Full profile output of yCanta_ webapp PDF export.  Most time is
+  spent in wait state and graph is not very helpful.
+
+.. figure:: docs/ycanta-pdf.png
+  :alt: yCanta webapp filtered for PDF export format function.
+  :align: center
+
+  Filtered profile output of yCanta_ webapp PDF export.  Filtering was on the
+  pdf format function so time spent in wait state has been excluded and the
+  graph is now helpful.
+
 .. _FlameGraph: http://www.brendangregg.com/flamegraphs.html
+
+.. _yCanta: https://github.com/yCanta/yCanta

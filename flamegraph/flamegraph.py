@@ -1,3 +1,4 @@
+import re
 import sys
 import time
 import os.path
@@ -29,29 +30,34 @@ def create_flamegraph_entry(thread_id, frame, collapse_recursion=False):
       for fn, ln, fun, text in traceback.extract_stack(frame)[1:])
 
 class ProfileThread(threading.Thread):
-  def __init__(self, fd, interval, collapse_recursion=False):
+  def __init__(self, fd, interval, filter, collapse_recursion=False):
     threading.Thread.__init__(self, name="FlameGraph Thread")
     self.daemon = False
 
     self._fd = fd
     self._interval = interval
     self._collapse_recursion = collapse_recursion
+    if filter is not None:
+      self._filter = re.compile(filter)
+    else:
+      self._filter = None
 
     self._stats = collections.defaultdict(int)
 
     self._keeprunning = True
     self._stopevent = threading.Event()
-  
+
   def run(self):
     my_thread = threading.current_thread().ident
     while self._keeprunning:
       for thread_id, frame in sys._current_frames().items():
         if thread_id == my_thread:
           continue
-        #traceback.print_stack(frame, file=self._fd)
+
         entry = create_flamegraph_entry(thread_id, frame, self._collapse_recursion)
-        self._stats[entry] += 1
-        #self._fd.write('%f %s\n' % (time.clock(), entry))
+        if self._filter is None or self._filter.search(entry):
+          self._stats[entry] += 1
+
         self._stopevent.wait(self._interval)  # basically a sleep for x seconds unless someone asked to stop
 
     for key in sorted(self._stats.keys()):
@@ -78,13 +84,17 @@ def main():
       help='Save stats to file. If not specified default is to stderr')
   parser.add_argument('-i', '--interval', type=float, nargs='?', default=0.001,
       help='Interval in seconds for collection of stackframes (default: %(default)ss)')
-  parser.add_argument('-c', '--collapse-recursion', action='store_true', 
+  parser.add_argument('-c', '--collapse-recursion', action='store_true',
       help='Collapse simple recursion (function calls itself) into one stack frame in output')
-  
+  parser.add_argument('-f', '--filter', type=str, nargs='?', default=None,
+      help='Regular expression to filter which stack frames are profiled.  The
+      regular expression is run against each entire line of output so you can
+      filter by function or thread or both.')
+
   args = parser.parse_args()
   print(args)
 
-  thread = ProfileThread(args.output, args.interval, args.collapse_recursion)
+  thread = ProfileThread(args.output, args.interval, args.filter, args.collapse_recursion)
 
   if not os.path.isfile(args.script_file):
     parser.error('Script file does not exist: ' + args.script_file)
@@ -99,7 +109,7 @@ def main():
 
   try:
     # exec docs say globals and locals should be same dictionary else treated as class context
-    exec(script_compiled, script_globals, script_globals) 
+    exec(script_compiled, script_globals, script_globals)
   finally:
     thread.stop()
     thread.join()
