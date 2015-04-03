@@ -32,7 +32,7 @@ def create_flamegraph_entry(thread_id, frame, collapse_recursion=False):
 class ProfileThread(threading.Thread):
   def __init__(self, fd, interval, filter, collapse_recursion=False):
     threading.Thread.__init__(self, name="FlameGraph Thread")
-    self.daemon = False
+    self.daemon = True
 
     self._fd = fd
     self._interval = interval
