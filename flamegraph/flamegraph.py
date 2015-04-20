@@ -87,9 +87,9 @@ def main():
   parser.add_argument('-c', '--collapse-recursion', action='store_true',
       help='Collapse simple recursion (function calls itself) into one stack frame in output')
   parser.add_argument('-f', '--filter', type=str, nargs='?', default=None,
-      help='Regular expression to filter which stack frames are profiled.  The
-      regular expression is run against each entire line of output so you can
-      filter by function or thread or both.')
+      help='Regular expression to filter which stack frames are profiled.  The '
+      'regular expression is run against each entire line of output so you can '
+      'filter by function or thread or both.')
 
   args = parser.parse_args()
   print(args)
