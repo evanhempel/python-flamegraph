@@ -6,6 +6,7 @@ import argparse
 import threading
 import traceback
 import collections
+import atexit
 
 def get_thread_name(ident):
   for th in threading.enumerate():
@@ -34,7 +35,9 @@ class ProfileThread(threading.Thread):
     threading.Thread.__init__(self, name="FlameGraph Thread")
     self.daemon = True
 
+    self._lock = threading.Lock()
     self._fd = fd
+    self._written = False
     self._interval = interval
     self._collapse_recursion = collapse_recursion
     if filter is not None:
@@ -47,6 +50,8 @@ class ProfileThread(threading.Thread):
     self._keeprunning = True
     self._stopevent = threading.Event()
 
+    atexit.register(self.stop)
+
   def run(self):
     my_thread = threading.current_thread().ident
     while self._keeprunning:
@@ -56,13 +61,21 @@ class ProfileThread(threading.Thread):
 
         entry = create_flamegraph_entry(thread_id, frame, self._collapse_recursion)
         if self._filter is None or self._filter.search(entry):
-          self._stats[entry] += 1
+          with self._lock:
+            self._stats[entry] += 1
 
         self._stopevent.wait(self._interval)  # basically a sleep for x seconds unless someone asked to stop
 
-    for key in sorted(self._stats.keys()):
-      self._fd.write('%s %d\n' % (key, self._stats[key]))
-    self._fd.close()
+    self._write_results()
+
+  def _write_results(self):
+    with self._lock:
+      if self._written:
+        return
+      self._written = True
+      for key in sorted(self._stats.keys()):
+        self._fd.write('%s %d\n' % (key, self._stats[key]))
+      self._fd.close()
 
   def num_frames(self, unique=False):
     if unique:
@@ -73,6 +86,21 @@ class ProfileThread(threading.Thread):
   def stop(self):
     self._keeprunning = False
     self._stopevent.set()
+    self._write_results()
+    # Wait for the thread to actually stop.
+    # Using atexit without this line can result in the interpreter shutting
+    # down while the thread is alive, raising an exception.
+    self.join()
+
+def start_profile_thread(fd, interval=0.001, filter=None, collapse_recursion=False):
+  """Start a profiler thread."""
+  profile_thread = ProfileThread(
+    fd=fd,
+    interval=interval,
+    filter=filter,
+    collapse_recursion=collapse_recursion)
+  profile_thread.start()
+  return profile_thread
 
 def main():
   parser = argparse.ArgumentParser(prog='python -m flamegraph', description="Sample python stack frames for use with FlameGraph")
