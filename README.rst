@@ -14,6 +14,10 @@ Run your script under the profiler::
 
   python -m flamegraph -o perf.log myscript.py --your-script args here
 
+Or, run the profiler from your script::
+
+  flamegraph.start_profile_thread(fd=open("./perf.log", "w"))
+
 Run Brendan Gregg's FlameGraph_ tool against the output::
 
   flamegraph.pl --title "MyScript CPU" perf.log > perf.svg
