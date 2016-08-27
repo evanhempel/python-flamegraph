@@ -56,5 +56,8 @@ target/
 # Vim files
 *~
 
+# IDEA & PyCharm
+.idea
+
 perf.log
 perf.svg
