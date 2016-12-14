@@ -7,6 +7,7 @@ import threading
 import traceback
 import collections
 import atexit
+import functools
 
 def get_thread_name(ident):
   for th in threading.enumerate():
@@ -14,7 +15,10 @@ def get_thread_name(ident):
       return th.getName()
   return str(ident) # couldn't find, return something useful anyways
 
-def create_flamegraph_entry(thread_id, frame, collapse_recursion=False):
+def default_format_entry(threadname, fname, line, fun, fmt='%(threadname)s`%(fun)s'):
+  return fmt % locals()
+
+def create_flamegraph_entry(thread_id, frame, format_entry, collapse_recursion=False):
   threadname = get_thread_name(thread_id)
 
   # [1:] to skip first frame which is in this program
@@ -23,15 +27,15 @@ def create_flamegraph_entry(thread_id, frame, collapse_recursion=False):
     last = None
     for fn, ln, fun, text in traceback.extract_stack(frame)[1:]:
       if last != fun:
-        ret.append('%s`%s' % (threadname, fun))
+        ret.append(format_entry(threadname, fn, ln, fun))
       last = fun
     return ';'.join(ret)
 
-  return ';'.join('%s`%s' % (threadname, fun)
+  return ';'.join(format_entry(threadname, fn, ln, fun)
       for fn, ln, fun, text in traceback.extract_stack(frame)[1:])
 
 class ProfileThread(threading.Thread):
-  def __init__(self, fd, interval, filter, collapse_recursion=False):
+  def __init__(self, fd, interval, filter, format_entry, collapse_recursion=False):
     threading.Thread.__init__(self, name="FlameGraph Thread")
     self.daemon = True
 
@@ -39,11 +43,13 @@ class ProfileThread(threading.Thread):
     self._fd = fd
     self._written = False
     self._interval = interval
+    self._format_entry = format_entry
     self._collapse_recursion = collapse_recursion
     if filter is not None:
       self._filter = re.compile(filter)
     else:
       self._filter = None
+
 
     self._stats = collections.defaultdict(int)
 
@@ -59,7 +65,7 @@ class ProfileThread(threading.Thread):
         if thread_id == my_thread:
           continue
 
-        entry = create_flamegraph_entry(thread_id, frame, self._collapse_recursion)
+        entry = create_flamegraph_entry(thread_id, frame, self._format_entry, self._collapse_recursion)
         if self._filter is None or self._filter.search(entry):
           with self._lock:
             self._stats[entry] += 1
@@ -92,12 +98,13 @@ class ProfileThread(threading.Thread):
     # down while the thread is alive, raising an exception.
     self.join()
 
-def start_profile_thread(fd, interval=0.001, filter=None, collapse_recursion=False):
+def start_profile_thread(fd, interval=0.001, filter=None, format_entry=default_format_entry, collapse_recursion=False):
   """Start a profiler thread."""
   profile_thread = ProfileThread(
     fd=fd,
     interval=interval,
     filter=filter,
+    format_entry=format_entry,
     collapse_recursion=collapse_recursion)
   profile_thread.start()
   return profile_thread
@@ -118,11 +125,15 @@ def main():
       help='Regular expression to filter which stack frames are profiled.  The '
       'regular expression is run against each entire line of output so you can '
       'filter by function or thread or both.')
+  parser.add_argument('-F', '--format', type=str, nargs='?', default='%(threadname)s`%(fun)s',
+      help='Format-string (old-style) for encoding each stack frame into text.'
+      ' May include: "threadname", "fn", "fun" and "line"')
 
   args = parser.parse_args()
   print(args)
 
-  thread = ProfileThread(args.output, args.interval, args.filter, args.collapse_recursion)
+  format_entry = functools.partial(default_format_entry, fmt=args.format)
+  thread = ProfileThread(args.output, args.interval, args.filter, format_entry, args.collapse_recursion)
 
   if not os.path.isfile(args.script_file):
     parser.error('Script file does not exist: ' + args.script_file)
