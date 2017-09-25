@@ -127,7 +127,7 @@ def main():
       'filter by function or thread or both.')
   parser.add_argument('-F', '--format', type=str, nargs='?', default='%(threadname)s`%(fun)s',
       help='Format-string (old-style) for encoding each stack frame into text.'
-      ' May include: "threadname", "fn", "fun" and "line"')
+      ' May include: "threadname", "fname", "fun" and "line"')
 
   args = parser.parse_args()
   print(args)
